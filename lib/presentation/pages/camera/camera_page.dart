@@ -1,4 +1,5 @@
 import 'package:camera/camera.dart';
+import 'package:camera_flutter/presentation/pages/camera/widgets/bottom_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' show join;
 import 'package:path_provider/path_provider.dart';
@@ -24,7 +25,10 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> _initCamera() async {
     _cameras = await availableCameras();
-    _controller = CameraController(_cameras[_cameraIndex], ResolutionPreset.high);
+    _controller = CameraController(
+      _cameras[_cameraIndex],
+      ResolutionPreset.high,
+    );
     await _controller!.initialize();
     setState(() {});
   }
@@ -32,7 +36,10 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> _switchCamera() async {
     _cameraIndex = (_cameraIndex + 1) % _cameras.length;
     await _controller?.dispose();
-    _controller = CameraController(_cameras[_cameraIndex], ResolutionPreset.high);
+    _controller = CameraController(
+      _cameras[_cameraIndex],
+      ResolutionPreset.high,
+    );
     await _controller!.initialize();
     setState(() {});
   }
@@ -68,23 +75,38 @@ class _CameraPageState extends State<CameraPage> {
     }
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Camera test task',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+        ),
+      ),
       body: Stack(
         children: [
           CameraPreview(_controller!),
-          Positioned(
-            bottom: 30,
-            left: 30,
-            child: FloatingActionButton(
-              child: const Icon(Icons.switch_camera),
-              onPressed: _switchCamera,
-            ),
+          BottomMenu(
+            onSwitchCameraTap: _switchCamera,
+            onAddOverlayTap: () {},
+            onPlayStopTap: _isRecording ? _stopRecording : _startRecording,
+            onTakeImageTap: () {},
           ),
           Positioned(
-            bottom: 30,
-            right: 30,
-            child: FloatingActionButton(
-              child: Icon(_isRecording ? Icons.stop : Icons.videocam),
-              onPressed: _isRecording ? _stopRecording : _startRecording,
+            top: 20,
+            right: 40,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Text('00:00'),
+              ],
             ),
           ),
         ],
