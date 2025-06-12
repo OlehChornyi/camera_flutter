@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:camera_flutter/presentation/pages/camera/widgets/bottom_menu.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +18,9 @@ class _CameraPageState extends State<CameraPage> {
   late List<CameraDescription> _cameras;
   bool _isRecording = false;
   int _cameraIndex = 0;
+
+  Timer? _timer;
+  int _recordDuration = 0;
 
   @override
   void initState() {
@@ -44,14 +49,35 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
+  void _startTimer() {
+    _recordDuration = 0;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() {
+        _recordDuration++;
+      });
+    });
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$secs';
+  }
+
   Future<void> _startRecording() async {
     final directory = await getTemporaryDirectory();
     final videoPath = join(directory.path, '${DateTime.now()}.mp4');
-
+print('VideoPath: $videoPath');
     await _controller?.startVideoRecording();
     setState(() {
       _isRecording = true;
     });
+    _startTimer();
   }
 
   Future<void> _stopRecording() async {
@@ -59,12 +85,14 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {
       _isRecording = false;
     });
+    _stopTimer();
     print('Video saved to: ${file?.path}');
   }
 
   @override
   void dispose() {
     _controller?.dispose();
+    _stopTimer();
     super.dispose();
   }
 
@@ -90,25 +118,37 @@ class _CameraPageState extends State<CameraPage> {
             onPlayStopTap: _isRecording ? _stopRecording : _startRecording,
             onTakeImageTap: () {},
           ),
-          Positioned(
-            top: 20,
-            right: 40,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(8),
+          if (_isRecording) ...{
+            Positioned(
+              top: 20,
+              right: 40,
+              child: Container(
+                width: 64,
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(50),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 2),
-                  Text('00:00'),
-              ],
+                    const SizedBox(width: 2),
+                    Text(
+                      _formatDuration(_recordDuration),
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+          },
         ],
       ),
     );

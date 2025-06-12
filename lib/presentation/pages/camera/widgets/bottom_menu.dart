@@ -34,7 +34,7 @@ class BottomMenu extends StatelessWidget {
                     borderRadius: BorderRadius.circular(56),
                   ),
                   child: IconButton(
-                    onPressed: () {},
+                    onPressed: onSwitchCameraTap,
                     icon: Icon(
                       Icons.cameraswitch,
                       size: 28,
@@ -49,7 +49,7 @@ class BottomMenu extends StatelessWidget {
                     borderRadius: BorderRadius.circular(56),
                   ),
                   child: IconButton(
-                    onPressed: () {},
+                    onPressed: onAddOverlayTap,
                     icon: Icon(
                       Icons.add_circle_outline,
                       size: 32,
@@ -68,7 +68,7 @@ class BottomMenu extends StatelessWidget {
               ),
               child: Center(
                 child: GestureDetector(
-                  onTap: () {},
+                  onTap: onPlayStopTap,
                   child: Container(
                     width: 52,
                     height: 52,
@@ -88,7 +88,7 @@ class BottomMenu extends StatelessWidget {
                   borderRadius: BorderRadius.circular(56),
                 ),
                 child: IconButton(
-                  onPressed: () {},
+                  onPressed: onTakeImageTap,
                   icon: Icon(
                     Icons.image_outlined,
                     size: 30,
