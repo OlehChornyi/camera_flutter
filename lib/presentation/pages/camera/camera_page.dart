@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:camera_flutter/presentation/pages/camera/widgets/bottom_menu.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:path/path.dart' show join;
 import 'package:path_provider/path_provider.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -19,6 +21,8 @@ class _CameraPageState extends State<CameraPage> {
   late List<CameraDescription> _cameras;
   bool _isRecording = false;
   int _cameraIndex = 0;
+
+  Uint8List? _overlayImage;
 
   Timer? _timer;
   int _recordDuration = 0;
@@ -86,7 +90,7 @@ class _CameraPageState extends State<CameraPage> {
     _stopTimer();
 
     if (file != null) {
-      await GallerySaver.saveVideo(file.path, albumName: 'MyFlutterApp');
+      await GallerySaver.saveVideo(file.path);
     }
   }
 
@@ -98,9 +102,39 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       final file = await _controller!.takePicture();
-      await GallerySaver.saveImage(file.path, albumName: 'MyFlutterApp');
+      await GallerySaver.saveImage(file.path);
     } catch (e) {
       print('Error taking picture: $e');
+    }
+  }
+
+  Future<Uint8List?> retrieveSingleImageBytes() async {
+    final result = await PhotoManager.requestPermissionExtend();
+    if (!result.isAuth) {
+      print("Permission denied.");
+      return null;
+    }
+
+    final albums = await PhotoManager.getAssetPathList(
+      type: RequestType.image,
+      onlyAll: true,
+    );
+    if (albums.isEmpty) return null;
+
+    final imageAssets = await albums.first.getAssetListPaged(page: 0, size: 1);
+    if (imageAssets.isEmpty) return null;
+
+    final imageData = await imageAssets.first.thumbnailDataWithSize(
+      const ThumbnailSize(500, 500),
+    );
+
+    return imageData;
+  }
+
+  Future<void> _loadOverlayImage() async {
+    final imageBytes = await retrieveSingleImageBytes();
+    if (imageBytes != null) {
+      setState(() => _overlayImage = imageBytes);
     }
   }
 
@@ -127,10 +161,20 @@ class _CameraPageState extends State<CameraPage> {
       body: Stack(
         children: [
           CameraPreview(_controller!),
+          if (_overlayImage != null)
+            Opacity(
+              opacity: 0.8,
+              child: Image.memory(
+                _overlayImage!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
           BottomMenu(
             isRecording: _isRecording,
             onSwitchCameraTap: _switchCamera,
-            onAddOverlayTap: () {},
+            onAddOverlayTap: _loadOverlayImage,
             onPlayStopTap: _isRecording ? _stopRecording : _startRecording,
             onTakeImageTap: _takePicture,
           ),
