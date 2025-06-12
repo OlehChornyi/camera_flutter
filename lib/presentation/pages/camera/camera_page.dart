@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:camera_flutter/presentation/pages/camera/widgets/bottom_menu.dart';
 import 'package:flutter/material.dart';
+import 'package:gallery_saver/gallery_saver.dart';
 import 'package:path/path.dart' show join;
 import 'package:path_provider/path_provider.dart';
 
@@ -70,9 +71,6 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _startRecording() async {
-    final directory = await getTemporaryDirectory();
-    final videoPath = join(directory.path, '${DateTime.now()}.mp4');
-print('VideoPath: $videoPath');
     await _controller?.startVideoRecording();
     setState(() {
       _isRecording = true;
@@ -86,22 +84,25 @@ print('VideoPath: $videoPath');
       _isRecording = false;
     });
     _stopTimer();
-    print('Video saved to: ${file?.path}');
+
+    if (file != null) {
+      await GallerySaver.saveVideo(file.path, albumName: 'MyFlutterApp');
+    }
   }
 
   Future<void> _takePicture() async {
-  if (_controller == null || !_controller!.value.isInitialized || _isRecording) return;
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
+        _isRecording)
+      return;
 
-  try {
-    final directory = await getTemporaryDirectory();
-    final filePath = join(directory.path, '${DateTime.now()}.jpg');
-    final file = await _controller!.takePicture();
-
-    print('Picture saved to: ${file.path}');
-  } catch (e) {
-    print('Error taking picture: $e');
+    try {
+      final file = await _controller!.takePicture();
+      await GallerySaver.saveImage(file.path, albumName: 'MyFlutterApp');
+    } catch (e) {
+      print('Error taking picture: $e');
+    }
   }
-}
 
   @override
   void dispose() {
