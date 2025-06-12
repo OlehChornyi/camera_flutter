@@ -89,6 +89,20 @@ print('VideoPath: $videoPath');
     print('Video saved to: ${file?.path}');
   }
 
+  Future<void> _takePicture() async {
+  if (_controller == null || !_controller!.value.isInitialized || _isRecording) return;
+
+  try {
+    final directory = await getTemporaryDirectory();
+    final filePath = join(directory.path, '${DateTime.now()}.jpg');
+    final file = await _controller!.takePicture();
+
+    print('Picture saved to: ${file.path}');
+  } catch (e) {
+    print('Error taking picture: $e');
+  }
+}
+
   @override
   void dispose() {
     _controller?.dispose();
@@ -113,10 +127,11 @@ print('VideoPath: $videoPath');
         children: [
           CameraPreview(_controller!),
           BottomMenu(
+            isRecording: _isRecording,
             onSwitchCameraTap: _switchCamera,
             onAddOverlayTap: () {},
             onPlayStopTap: _isRecording ? _stopRecording : _startRecording,
-            onTakeImageTap: () {},
+            onTakeImageTap: _takePicture,
           ),
           if (_isRecording) ...{
             Positioned(
