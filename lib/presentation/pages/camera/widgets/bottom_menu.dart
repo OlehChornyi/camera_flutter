@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class BottomMenu extends StatelessWidget {
   const BottomMenu({
     super.key,
+    required this.isOverlaySelected,
     required this.isRecording,
     required this.onSwitchCameraTap,
     required this.onAddOverlayTap,
@@ -10,6 +11,7 @@ class BottomMenu extends StatelessWidget {
     required this.onTakeImageTap,
   });
 
+  final bool isOverlaySelected;
   final bool isRecording;
   final Function() onSwitchCameraTap;
   final Function() onAddOverlayTap;
@@ -57,7 +59,9 @@ class BottomMenu extends StatelessWidget {
                     child: IconButton(
                       onPressed: onAddOverlayTap,
                       icon: Icon(
-                        Icons.add_circle_outline,
+                        isOverlaySelected
+                            ? Icons.add_circle_outline
+                            : Icons.remove_circle_outline,
                         size: 32,
                         color: Colors.white,
                       ),

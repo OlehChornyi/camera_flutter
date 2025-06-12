@@ -1,13 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:camera_flutter/presentation/pages/camera/widgets/bottom_menu.dart';
 import 'package:flutter/material.dart';
-import 'package:gallery_saver/gallery_saver.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' show join;
 import 'package:path_provider/path_provider.dart';
-import 'package:photo_manager/photo_manager.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -23,6 +24,7 @@ class _CameraPageState extends State<CameraPage> {
   int _cameraIndex = 0;
 
   Uint8List? _overlayImage;
+  final ImagePicker _picker = ImagePicker();
 
   Timer? _timer;
   int _recordDuration = 0;
@@ -88,9 +90,11 @@ class _CameraPageState extends State<CameraPage> {
       _isRecording = false;
     });
     _stopTimer();
-
     if (file != null) {
-      await GallerySaver.saveVideo(file.path);
+      await ImageGallerySaverPlus.saveFile(
+        file.path,
+        name: '${DateTime.now().millisecondsSinceEpoch}',
+      );
     }
   }
 
@@ -102,39 +106,38 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       final file = await _controller!.takePicture();
-      await GallerySaver.saveImage(file.path);
+      final imageBytes = await file.readAsBytes();
+      await ImageGallerySaverPlus.saveImage(
+        imageBytes,
+        quality: 100,
+        name: '${DateTime.now().millisecondsSinceEpoch}',
+      );
     } catch (e) {
       print('Error taking picture: $e');
     }
   }
 
   Future<Uint8List?> retrieveSingleImageBytes() async {
-    final result = await PhotoManager.requestPermissionExtend();
-    if (!result.isAuth) {
-      print("Permission denied.");
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+    );
+
+    if (pickedFile == null) {
       return null;
     }
 
-    final albums = await PhotoManager.getAssetPathList(
-      type: RequestType.image,
-      onlyAll: true,
-    );
-    if (albums.isEmpty) return null;
-
-    final imageAssets = await albums.first.getAssetListPaged(page: 0, size: 1);
-    if (imageAssets.isEmpty) return null;
-
-    final imageData = await imageAssets.first.thumbnailDataWithSize(
-      const ThumbnailSize(500, 500),
-    );
-
-    return imageData;
+    final imageBytes = await File(pickedFile.path).readAsBytes();
+    return imageBytes;
   }
 
   Future<void> _loadOverlayImage() async {
-    final imageBytes = await retrieveSingleImageBytes();
-    if (imageBytes != null) {
-      setState(() => _overlayImage = imageBytes);
+    if (_overlayImage != null) {
+      setState(() => _overlayImage = null);
+    } else {
+      final imageBytes = await retrieveSingleImageBytes();
+      if (imageBytes != null) {
+        setState(() => _overlayImage = imageBytes);
+      }
     }
   }
 
@@ -163,7 +166,7 @@ class _CameraPageState extends State<CameraPage> {
           CameraPreview(_controller!),
           if (_overlayImage != null)
             Opacity(
-              opacity: 0.8,
+              opacity: 0.2,
               child: Image.memory(
                 _overlayImage!,
                 fit: BoxFit.cover,
@@ -172,6 +175,7 @@ class _CameraPageState extends State<CameraPage> {
               ),
             ),
           BottomMenu(
+            isOverlaySelected: _overlayImage == null,
             isRecording: _isRecording,
             onSwitchCameraTap: _switchCamera,
             onAddOverlayTap: _loadOverlayImage,
