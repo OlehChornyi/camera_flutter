@@ -7,8 +7,8 @@ import 'package:camera_flutter/presentation/pages/camera/widgets/bottom_menu.dar
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' show join;
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -86,13 +86,20 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> _stopRecording() async {
     final file = await _controller?.stopVideoRecording();
+    final extDir = await getExternalStorageDirectory();
+    final videoName = "video_${DateTime.now().millisecondsSinceEpoch}.mp4";
+    final newPath = path.join(extDir!.path, videoName);
+
     setState(() {
       _isRecording = false;
     });
     _stopTimer();
     if (file != null) {
+      final originalFile = File(file!.path);
+      final newFile = await originalFile.copy(newPath);
+      print('NEW FILE: ${newFile.path}');
       await ImageGallerySaverPlus.saveFile(
-        file.path,
+        newFile.path,
         name: '${DateTime.now().millisecondsSinceEpoch}',
       );
     }
@@ -106,10 +113,8 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       final file = await _controller!.takePicture();
-      final imageBytes = await file.readAsBytes();
-      await ImageGallerySaverPlus.saveImage(
-        imageBytes,
-        quality: 100,
+      await ImageGallerySaverPlus.saveFile(
+        file.path,
         name: '${DateTime.now().millisecondsSinceEpoch}',
       );
     } catch (e) {
