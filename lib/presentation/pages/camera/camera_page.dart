@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:camera_flutter/presentation/pages/camera/widgets/bottom_menu.dart';
+import 'package:camera_flutter/presentation/pages/camera/widgets/timer_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
@@ -95,9 +96,8 @@ class _CameraPageState extends State<CameraPage> {
     });
     _stopTimer();
     if (file != null) {
-      final originalFile = File(file!.path);
+      final originalFile = File(file.path);
       final newFile = await originalFile.copy(newPath);
-      print('NEW FILE: ${newFile.path}');
       await ImageGallerySaverPlus.saveFile(
         newFile.path,
         name: '${DateTime.now().millisecondsSinceEpoch}',
@@ -122,7 +122,7 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  Future<Uint8List?> retrieveSingleImageBytes() async {
+  Future<Uint8List?> pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
     );
@@ -139,7 +139,7 @@ class _CameraPageState extends State<CameraPage> {
     if (_overlayImage != null) {
       setState(() => _overlayImage = null);
     } else {
-      final imageBytes = await retrieveSingleImageBytes();
+      final imageBytes = await pickImage();
       if (imageBytes != null) {
         setState(() => _overlayImage = imageBytes);
       }
@@ -168,7 +168,7 @@ class _CameraPageState extends State<CameraPage> {
       ),
       body: Stack(
         children: [
-          CameraPreview(_controller!),
+          Positioned.fill(child: CameraPreview(_controller!)),
           if (_overlayImage != null)
             Opacity(
               opacity: 0.2,
@@ -188,35 +188,7 @@ class _CameraPageState extends State<CameraPage> {
             onTakeImageTap: _takePicture,
           ),
           if (_isRecording) ...{
-            Positioned(
-              top: 20,
-              right: 40,
-              child: Container(
-                width: 64,
-                decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(50),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      _formatDuration(_recordDuration),
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            TimerWidget(timerValue: _formatDuration(_recordDuration)),
           },
         ],
       ),
