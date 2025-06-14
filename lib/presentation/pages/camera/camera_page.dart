@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:camera_flutter/presentation/pages/camera/widgets/bottom_menu.dart';
 import 'package:camera_flutter/presentation/pages/camera/widgets/timer_widget.dart';
+import 'package:camera_flutter/services/overlay_service.dart';
+import 'package:camera_flutter/services/timer_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,16 +21,13 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> {
+  final TimerService _timerService = TimerService();
+  final OverlayService _overlayService = OverlayService();
+
   CameraController? _controller;
   late List<CameraDescription> _cameras;
   bool _isRecording = false;
   int _cameraIndex = 0;
-
-  Uint8List? _overlayImage;
-  final ImagePicker _picker = ImagePicker();
-
-  Timer? _timer;
-  int _recordDuration = 0;
 
   @override
   void initState() {
@@ -57,32 +56,12 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
-  void _startTimer() {
-    _recordDuration = 0;
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() {
-        _recordDuration++;
-      });
-    });
-  }
-
-  void _stopTimer() {
-    _timer?.cancel();
-    _timer = null;
-  }
-
-  String _formatDuration(int seconds) {
-    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
-    final secs = (seconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$secs';
-  }
-
   Future<void> _startRecording() async {
     await _controller?.startVideoRecording();
     setState(() {
       _isRecording = true;
     });
-    _startTimer();
+    _timerService.start();
   }
 
   Future<void> _stopRecording() async {
@@ -94,7 +73,7 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {
       _isRecording = false;
     });
-    _stopTimer();
+    _timerService.stop();
     if (file != null) {
       final originalFile = File(file.path);
       final newFile = await originalFile.copy(newPath);
@@ -122,34 +101,11 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  Future<Uint8List?> pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-    );
-
-    if (pickedFile == null) {
-      return null;
-    }
-
-    final imageBytes = await File(pickedFile.path).readAsBytes();
-    return imageBytes;
-  }
-
-  Future<void> _loadOverlayImage() async {
-    if (_overlayImage != null) {
-      setState(() => _overlayImage = null);
-    } else {
-      final imageBytes = await pickImage();
-      if (imageBytes != null) {
-        setState(() => _overlayImage = imageBytes);
-      }
-    }
-  }
-
   @override
   void dispose() {
     _controller?.dispose();
-    _stopTimer();
+    _timerService.start();
+    _overlayService.dispose();
     super.dispose();
   }
 
@@ -169,26 +125,45 @@ class _CameraPageState extends State<CameraPage> {
       body: Stack(
         children: [
           Positioned.fill(child: CameraPreview(_controller!)),
-          if (_overlayImage != null)
-            Opacity(
-              opacity: 0.2,
-              child: Image.memory(
-                _overlayImage!,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-              ),
+          Positioned.fill(
+            child: ValueListenableBuilder<Uint8List?>(
+              valueListenable: _overlayService.overlayImage,
+              builder: (context, imageBytes, _) {
+                if (imageBytes == null) return SizedBox();
+                return Opacity(
+                  opacity: 0.2,
+                  child: Image.memory(
+                    imageBytes!,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                );
+              },
             ),
-          BottomMenu(
-            isOverlaySelected: _overlayImage == null,
-            isRecording: _isRecording,
-            onSwitchCameraTap: _switchCamera,
-            onAddOverlayTap: _loadOverlayImage,
-            onPlayStopTap: _isRecording ? _stopRecording : _startRecording,
-            onTakeImageTap: _takePicture,
+          ),
+
+          ValueListenableBuilder<Uint8List?>(
+            valueListenable: _overlayService.overlayImage,
+            builder: (context, imageBytes, _) {
+              final isOverlaySelected = imageBytes == null;
+              return BottomMenu(
+                isOverlaySelected: isOverlaySelected,
+                isRecording: _isRecording,
+                onSwitchCameraTap: _switchCamera,
+                onAddOverlayTap: _overlayService.loadOverlayImage,
+                onPlayStopTap: _isRecording ? _stopRecording : _startRecording,
+                onTakeImageTap: _takePicture,
+              );
+            },
           ),
           if (_isRecording) ...{
-            TimerWidget(timerValue: _formatDuration(_recordDuration)),
+            ValueListenableBuilder<String>(
+              valueListenable: _timerService.timerValue,
+              builder: (_, value, __) {
+                return TimerWidget(timerValue: value);
+              },
+            ),
           },
         ],
       ),
